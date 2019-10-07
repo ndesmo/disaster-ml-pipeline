@@ -1,8 +1,31 @@
 import sys
 
+import pandas as pd
+
 
 def load_data(messages_filepath, categories_filepath):
-    pass
+    """
+    Loads the messages and categories datasets from the local CSV files into pandas dataframes and merges them into a
+    single pandas dataframe.
+
+    :param messages_filepath: The filepath for the messages CSV file
+    :param categories_filepath: The filepath for the categories CSV file
+    :return: A merged pandas dataframe
+    """
+    # load messages dataset
+    messages = pd.read_csv(messages_filepath)
+
+    # load categories dataset
+    categories = pd.read_csv(categories_filepath)
+
+    # set the indexes of both datasets as their 'id' columns in preparation for merging
+    messages = messages.set_index('id')
+    categories = categories.set_index('id')
+
+    # merge datasets
+    df = messages.merge(categories, left_index=True, right_index=True)
+
+    return df
 
 
 def clean_data(df):
