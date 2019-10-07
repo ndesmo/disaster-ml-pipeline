@@ -1,6 +1,7 @@
+import pandas as pd
 import sys
 
-import pandas as pd
+from sqlalchemy import create_engine
 
 
 def load_data(messages_filepath, categories_filepath):
@@ -63,7 +64,19 @@ def clean_data(df):
 
 
 def save_data(df, database_filename):
-    pass  
+    """
+    Saves the cleaned dataset into a local sqlite database file.
+
+    :param df: The cleaned pandas dataframe
+    :param database_filename: The filename of the database file
+    :return:
+    """
+
+    # Set up the SQL Alchemy engine
+    engine = create_engine('sqlite:///{}'.format(database_filename))
+
+    # Save the pandas dataframe as a sqlite database file
+    df.to_sql('disaster', engine, index=False)
 
 
 def main():
