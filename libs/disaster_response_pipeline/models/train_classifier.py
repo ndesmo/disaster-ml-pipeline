@@ -2,20 +2,37 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
 
+from sqlalchemy import create_engine
+
+from sklearn.model_selection import train_test_split
+
+import pandas as pd
 import sys
 
 lemmatizer = WordNetLemmatizer()
 
 
 def load_data(database_filepath):
-    pass
+    """
+    Extracts the database data as a pandas dataframe
+    :param database_filepath: The filepath to the database file
+    :return: a pandas dataframe
+    """
+
+    # Connect and load data into pandas dataframe
+    engine = create_engine('sqlite:///{}'.format(database_filepath))
+    df = pd.read_sql_table('disaster', engine)
+
+    # Split data into X, Y and the names of categories to classify
+    X = df[df.columns[:3]]
+    Y = df[df.columns[3:]]
+    category_names = df.columns[3:]
+
+    return X, Y, category_names
 
 
 def tokenize(text):
-
-    w = word_tokenize(text)
-    t = pos_tag(w)
-    return [(lemmatizer.lemmatize(x[0]), x[1]) for x in t]
+    pass
 
 
 def build_model():
