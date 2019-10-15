@@ -64,9 +64,42 @@ def tokenize(text):
     return pd.DataFrame([word_freqs]), pd.DataFrame([word_postags])
 
 
-def build_model():
+def tokenize_column(text_col):
+    """
+    Apply the tokenizer to a column of text data
+
+    :param text_col: column of text data
+    :return: two pandas dataframes of the tokenized output
+    """
+
+    df_freqs = pd.DataFrame()
+    df_postags = pd.DataFrame()
+
+    for text in text_col:
+        word_freqs, word_postags = tokenize(text)
+        df_freqs = pd.concat([df_freqs, word_freqs], sort=True)
+        df_postags = pd.concat([df_postags, word_postags], sort=True)
+
+    # Fill blank values with zero
+    df_freqs = df_freqs.fillna(0)
+    df_postags = df_postags.fillna(0)
+
+    return df_freqs, df_postags
+
+def prepare_data(df):
+    """
+    Apply feature engineering to the feature dataframe.
+
+    :param df: Pandas dataframe containing the features
+    :return: pre-processed features dataframe
+    """
+
+    word_freq, word_postags = map(df['message'])
+
     pass
 
+def build_model():
+    pass
 
 def evaluate_model(model, X_test, Y_test, category_names):
     pass
@@ -84,7 +117,7 @@ def main():
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
         
         print('Building model...')
-        model = build_model()
+        model = build_model(X)
         
         print('Training model...')
         model.fit(X_train, Y_train)
