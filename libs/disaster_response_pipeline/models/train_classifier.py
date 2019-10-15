@@ -32,7 +32,15 @@ def load_data(database_filepath):
 
 
 def tokenize(text):
-    pass
+    """
+    Given a text value return a tokenized labelled output
+    :param text: a string of free text
+    :return: tokenized labelled pandas dataframe
+    """
+
+    words = word_tokenize(text)
+    tagged = pos_tag(words)
+    return [(lemmatizer.lemmatize(x[0]), x[1]) for x in tagged]
 
 
 def build_model():
