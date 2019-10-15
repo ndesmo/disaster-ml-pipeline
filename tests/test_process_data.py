@@ -1,6 +1,7 @@
 import unittest
 import pandas as pd
-import process_data
+
+from disaster_response_pipeline.data import process_data
 
 class TestProcessData(unittest.TestCase):
     def setUp(self):

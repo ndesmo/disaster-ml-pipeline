@@ -1,4 +1,10 @@
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk import pos_tag
+
 import sys
+
+lemmatizer = WordNetLemmatizer()
 
 
 def load_data(database_filepath):
@@ -6,7 +12,10 @@ def load_data(database_filepath):
 
 
 def tokenize(text):
-    pass
+
+    w = word_tokenize(text)
+    t = pos_tag(w)
+    return [(lemmatizer.lemmatize(x[0]), x[1]) for x in t]
 
 
 def build_model():
