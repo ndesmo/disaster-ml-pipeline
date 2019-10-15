@@ -35,12 +35,33 @@ def tokenize(text):
     """
     Given a text value return a tokenized labelled output
     :param text: a string of free text
-    :return: tokenized labelled pandas dataframe
+    :return: tokenized output
     """
 
+    # Get word tokens from the text
     words = word_tokenize(text)
+
+    # Get POS tags
     tagged = pos_tag(words)
-    return [(lemmatizer.lemmatize(x[0]), x[1]) for x in tagged]
+
+    # Stem the words inside the POS tagged output
+    stemtags = [(lemmatizer.lemmatize(x[0]), x[1]) for x in tagged]
+
+    # Collect the POS tags and the word frequencies into separate dataframes
+    word_freqs = {}
+    word_postags = {}
+    for x in stemtags:
+        if x[0] in word_freqs:
+            word_freqs[x[0]] += 1
+        else:
+            word_freqs[x[0]] = 1
+        if x[1] in word_postags:
+            word_postags[x[1]] += 1
+        else:
+            word_postags[x[1]] = 1
+
+    # Return two pandas dataframes
+    return pd.DataFrame([word_freqs]), pd.DataFrame([word_postags])
 
 
 def build_model():
