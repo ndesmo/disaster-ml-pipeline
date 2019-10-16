@@ -4,6 +4,7 @@ from nltk import pos_tag
 
 from sqlalchemy import create_engine
 
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 
 import pandas as pd
@@ -94,9 +95,26 @@ def prepare_data(df):
     :return: pre-processed features dataframe
     """
 
-    word_freq, word_postags = map(df['message'])
+    # Get the word frequency and pos tag dataframes from the messages column
+    word_freq, word_postags = tokenize_column(df['message'])
 
-    pass
+    # Create a matrix of TF-IDF for the word frequencies
+    v_freq = TfidfVectorizer()
+    df_freq = pd.DataFrame(v_freq.fit_transform(word_freq).toarray())
+    df_freq.columns = ['freq_{}'.format(x) for x in v_freq.get_feature_names()]
+
+    # Create a matrix of TF-IDF for the word pos_tags
+    v_postag = TfidfVectorizer()
+    df_postag = pd.DataFrame(v_postag.fit_transform(word_postags).toarray())
+    df_postag.columns = ['postag_{}'.format(x) for x in v_postag.get_feature_names()]
+
+    # Append the new columns to the dataframe
+    df = pd.concat([df, f_freq, df_postag], axis=1)
+
+    # Drop the original columns
+    df = df.drop(['message', 'original', 'genre'], axis=1)
+
+    return df
 
 def build_model():
     pass
@@ -115,9 +133,17 @@ def main():
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
         X, Y, category_names = load_data(database_filepath)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
+
+        print('Preparing data')
+        # Run feature engineering on the data
+        X_train = prepare_data(X_train)
+        X_test = prepare_data(X_test)
+
+        print(X_train.head())
+        print(X_test.head())
         
         print('Building model...')
-        model = build_model(X)
+        model = build_model()
         
         print('Training model...')
         model.fit(X_train, Y_train)
