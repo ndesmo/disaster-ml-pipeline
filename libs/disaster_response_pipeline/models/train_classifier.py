@@ -1,16 +1,9 @@
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-from nltk import pos_tag
-
 from sqlalchemy import create_engine
 
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 
 import pandas as pd
 import sys
-
-lemmatizer = WordNetLemmatizer()
 
 
 def load_data(database_filepath):
@@ -32,92 +25,9 @@ def load_data(database_filepath):
     return X, Y, category_names
 
 
-def tokenize(text):
-    """
-    Given a text value return a tokenized labelled output
-    :param text: a string of free text
-    :return: tokenized output
-    """
-
-    # Get word tokens from the text
-    words = word_tokenize(text)
-
-    # Get POS tags
-    tagged = pos_tag(words)
-
-    # Stem the words inside the POS tagged output
-    stemtags = [(lemmatizer.lemmatize(x[0]), x[1]) for x in tagged]
-
-    # Collect the POS tags and the word frequencies into separate dataframes
-    word_freqs = {}
-    word_postags = {}
-    for x in stemtags:
-        if x[0] in word_freqs:
-            word_freqs[x[0]] += 1
-        else:
-            word_freqs[x[0]] = 1
-        if x[1] in word_postags:
-            word_postags[x[1]] += 1
-        else:
-            word_postags[x[1]] = 1
-
-    # Return two pandas dataframes
-    return pd.DataFrame([word_freqs]), pd.DataFrame([word_postags])
-
-
-def tokenize_column(text_col):
-    """
-    Apply the tokenizer to a column of text data
-
-    :param text_col: column of text data
-    :return: two pandas dataframes of the tokenized output
-    """
-
-    df_freqs = pd.DataFrame()
-    df_postags = pd.DataFrame()
-
-    for text in text_col:
-        word_freqs, word_postags = tokenize(text)
-        df_freqs = pd.concat([df_freqs, word_freqs], sort=True)
-        df_postags = pd.concat([df_postags, word_postags], sort=True)
-
-    # Fill blank values with zero
-    df_freqs = df_freqs.fillna(0)
-    df_postags = df_postags.fillna(0)
-
-    return df_freqs, df_postags
-
-def prepare_data(df):
-    """
-    Apply feature engineering to the feature dataframe.
-
-    :param df: Pandas dataframe containing the features
-    :return: pre-processed features dataframe
-    """
-
-    # Get the word frequency and pos tag dataframes from the messages column
-    word_freq, word_postags = tokenize_column(df['message'])
-
-    # Create a matrix of TF-IDF for the word frequencies
-    v_freq = TfidfVectorizer()
-    df_freq = pd.DataFrame(v_freq.fit_transform(word_freq).toarray())
-    df_freq.columns = ['freq_{}'.format(x) for x in v_freq.get_feature_names()]
-
-    # Create a matrix of TF-IDF for the word pos_tags
-    v_postag = TfidfVectorizer()
-    df_postag = pd.DataFrame(v_postag.fit_transform(word_postags).toarray())
-    df_postag.columns = ['postag_{}'.format(x) for x in v_postag.get_feature_names()]
-
-    # Append the new columns to the dataframe
-    df = pd.concat([df, f_freq, df_postag], axis=1)
-
-    # Drop the original columns
-    df = df.drop(['message', 'original', 'genre'], axis=1)
-
-    return df
-
 def build_model():
     pass
+
 
 def evaluate_model(model, X_test, Y_test, category_names):
     pass
