@@ -1,36 +1,21 @@
 import json
 import plotly
-import pandas as pd
 
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
+from disaster_response_pipeline.models.train_classifier import tokenize, load_data
 
 from flask import Flask
 from flask import render_template, request, jsonify
 from plotly.graph_objs import Bar
 from sklearn.externals import joblib
-from sqlalchemy import create_engine
 
 
 app = Flask(__name__)
 
-def tokenize(text):
-    tokens = word_tokenize(text)
-    lemmatizer = WordNetLemmatizer()
-
-    clean_tokens = []
-    for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
-
-    return clean_tokens
-
 # load data
-engine = create_engine('sqlite:///../data/YourDatabaseName.db')
-df = pd.read_sql_table('YourTableName', engine)
+X, Y, category_names = load_data('../data/disaster.db')
 
 # load model
-model = joblib.load("../models/your_model_name.pkl")
+model = joblib.load("../models/disaster.pkl")
 
 
 # index webpage displays cool visuals and receives user input text for model
@@ -78,11 +63,14 @@ def index():
 @app.route('/go')
 def go():
     # save user input in query
-    query = request.args.get('query', '') 
+    query = request.args.get('query', '')
+
+    # Load the previously used vectorizer for the new data
+    word_vec = tokenize([query], '../models/vectorizer.pkl', False)
 
     # use model to predict classification for query
-    classification_labels = model.predict([query])[0]
-    classification_results = dict(zip(df.columns[4:], classification_labels))
+    classification_labels = model.predict(word_vec)[0]
+    classification_results = dict(zip(Y, classification_labels))
 
     # This will render the go.html Please see that file. 
     return render_template(

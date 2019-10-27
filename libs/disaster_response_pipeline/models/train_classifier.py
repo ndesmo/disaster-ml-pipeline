@@ -10,6 +10,8 @@ from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine
 import pandas as pd
 
+import pickle
+
 import sys
 
 
@@ -34,7 +36,7 @@ def load_data(database_filepath):
     return X, Y, category_names
 
 
-def tokenize(df):
+def tokenize(text, filepath='vectorizer.pkl', fit_transform=True):
     """
     Apply the tokenization to the dataset.
     :param df: dataset of features
@@ -46,15 +48,28 @@ def tokenize(df):
 
     # Use CountVectorizer to get the matrix of token counts
     # Ignore english stop words and use 1-grams only
-    cv = CountVectorizer(
-        lowercase=True,
-        stop_words='english',
-        ngram_range = (1,1),
-        tokenizer = token.tokenize
-    )
+    if fit_transform:
+        cv = CountVectorizer(
+            lowercase=True,
+            stop_words='english',
+            ngram_range = (1,1),
+            tokenizer = token.tokenize
+        )
 
-    # Apply the vectorizer to the message column and forget the rest
-    text_counts = cv.fit_transform(df['message'])
+        # Apply the vectorizer
+        text_counts = cv.fit_transform(text)
+
+        # Save the vectorizer to the filepath
+        pickle.dump(cv, open(filepath, 'wb'))
+
+    else:
+
+        # Re-use the vectorizer from the given filepath
+        cv = pickle.load(open(filepath, 'rb'))
+
+        # Apply the already fitted transform to the text
+        text_counts = cv.transform(text)
+
     return text_counts
 
 
@@ -107,7 +122,14 @@ def evaluate_model(model, X_test, Y_test, category_names):
 
 
 def save_model(model, model_filepath):
-    pass
+    """
+    Save the model as a pickle file to the filepath given.
+    :param model: The model used to fit the data
+    :param model_filepath: The filepath to save the model to
+    :return:
+    """
+
+    pickle.dump(model, open(model_filepath, 'wb'))
 
 
 def main():
@@ -117,7 +139,7 @@ def main():
         X, Y, category_names = load_data(database_filepath)
 
         # Apply the tokenizer to our features
-        X = tokenize(X)
+        X = tokenize(X['message'])
 
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
         
