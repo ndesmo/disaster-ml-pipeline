@@ -1,4 +1,8 @@
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn import metrics
+
+from sklearn.naive_bayes import MultinomialNB
 
 from nltk.tokenize import RegexpTokenizer
 
@@ -55,11 +59,24 @@ def tokenize(df):
 
 
 def build_model():
-    pass
 
+    return MultiOutputClassifier(MultinomialNB())
 
 def evaluate_model(model, X_test, Y_test, category_names):
-    pass
+
+
+    Y_pred = model.predict(X_test)
+
+    i = 0
+    for category in category_names:
+
+        y_test = Y_test[category]
+        y_pred = Y_pred[:,i]
+        print('MultinomialNB Accuracy for {}:'.format(category),
+              metrics.accuracy_score(y_test, y_pred)
+        )
+
+        i += 1
 
 
 def save_model(model, model_filepath):
