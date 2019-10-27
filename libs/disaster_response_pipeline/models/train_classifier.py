@@ -59,22 +59,49 @@ def tokenize(df):
 
 
 def build_model():
+    """
+    Initialize a model for running the data through
+    :return: a model
+    """
 
+    # MultinomialNB has been shown to be quite successful for text-classification
+    # problems.
+
+    # Use the MultiOutputClassifier to fit a classifier for each response variable.
     return MultiOutputClassifier(MultinomialNB())
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    """
+    Evaluate the model results by printing the model scores for each category.
+    :param model:
+    :param X_test: The vectorized text features of the test data.
+    :param Y_test: The response variables of the test data.
+    :param category_names: The category names of the response variables.
+    :return:
+    """
 
-
+    # Predict the output of the model on the test data
     Y_pred = model.predict(X_test)
 
     i = 0
+    # Run through each category and print its accuracy.
     for category in category_names:
 
+        # The test values can be extracted using the category name since Y_test
+        # is a pandas dataframe.
         y_test = Y_test[category]
+
+        # The predicted values are in a numpy array so use indexing to extract
+        # the predicted values.
         y_pred = Y_pred[:,i]
-        print('MultinomialNB Accuracy for {}:'.format(category),
-              metrics.accuracy_score(y_test, y_pred)
-        )
+
+        # Print the accuracy score
+        print('{}\n==============\nAccuracy: {}\nPrecision: {}\nRecall: {}\n==============\n'.format(
+            category,
+            metrics.accuracy_score(y_test, y_pred),
+            metrics.precision_score(y_test, y_pred, average = 'micro'),
+            metrics.recall_score(y_test, y_pred, average = 'micro')
+        ))
 
         i += 1
 
