@@ -1,28 +1,57 @@
-from sqlalchemy import create_engine
+from sklearn.feature_extraction.text import CountVectorizer
+
+from nltk.tokenize import RegexpTokenizer
 
 from sklearn.model_selection import train_test_split
-
+from sqlalchemy import create_engine
 import pandas as pd
+
 import sys
 
 
 def load_data(database_filepath):
     """
-    Extracts the database data as a pandas dataframe
-    :param database_filepath: The filepath to the database file
-    :return: a pandas dataframe
+    Load the preprocessed data from the database file and split it into
+    X, Y and category names datasets.
+
+    :param database_filepath: Filepath of the database file
+    :return: Pandas dataframes for the X, Y and category names
     """
 
-    # Connect and load data into pandas dataframe
+    # Set up the SQL Alchemy engine
     engine = create_engine('sqlite:///{}'.format(database_filepath))
-    df = pd.read_sql_table('disaster', engine)
 
-    # Split data into X, Y and the names of categories to classify
+    df = pd.read_sql('disaster', engine)
+
     X = df[df.columns[:3]]
     Y = df[df.columns[3:]]
-    category_names = df.columns[3:]
+    category_names = Y.columns
 
     return X, Y, category_names
+
+
+def tokenize(df):
+    """
+    Apply the tokenization to the dataset.
+    :param df: dataset of features
+    :return: tokenized features
+    """
+
+    # Initialize a tokenizer that just looks for alphanumeric characters
+    token = RegexpTokenizer(r'[a-zA-Z0-9]+')
+
+    # Use CountVectorizer to get the matrix of token counts
+    # Ignore english stop words and use 1-grams only
+    cv = CountVectorizer(
+        lowercase=True,
+        stop_words='english',
+        ngram_range = (1,1),
+        tokenizer = token.tokenize
+    )
+
+    # Apply the vectorizer to the message column and forget the rest
+    text_counts = cv.fit_transform(df['message'])
+    return text_counts
 
 
 def build_model():
@@ -42,15 +71,11 @@ def main():
         database_filepath, model_filepath = sys.argv[1:]
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
         X, Y, category_names = load_data(database_filepath)
+
+        # Apply the tokenizer to our features
+        X = tokenize(X)
+
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-
-        print('Preparing data')
-        # Run feature engineering on the data
-        X_train = prepare_data(X_train)
-        X_test = prepare_data(X_test)
-
-        print(X_train.head())
-        print(X_test.head())
         
         print('Building model...')
         model = build_model()

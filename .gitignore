@@ -2,3 +2,5 @@
 .DS_Store
 .git
 *.db
+*.csv
+*pycache*
