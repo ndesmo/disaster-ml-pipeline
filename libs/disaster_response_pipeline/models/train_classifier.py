@@ -1,5 +1,4 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn import metrics
 
@@ -38,7 +37,7 @@ def load_data(database_filepath):
     return X, Y, category_names
 
 lemmatizer = WordNetLemmatizer()
-analyzer = CountVectorizer().build_analyzer()
+analyzer = TfidfVectorizer().build_analyzer()
 
 def lemmatized_words(doc):
     return (lemmatizer.lemmatize(w) for w in analyzer(doc))
@@ -57,7 +56,7 @@ def tokenize(text, filepath='vectorizer.pkl', fit_transform=True):
     # Use CountVectorizer to get the matrix of token counts
     # Ignore english stop words and use 1-grams only
     if fit_transform:
-        v = CountVectorizer(
+        v = TfidfVectorizer(
             lowercase=True,
             stop_words='english',
             ngram_range=(1,1),
