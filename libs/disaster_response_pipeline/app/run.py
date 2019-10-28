@@ -1,7 +1,7 @@
 import json
 import plotly
 
-from disaster_response_pipeline.models.train_classifier import tokenize, load_data
+from disaster_response_pipeline.models.train_classifier import tokenize, load_data, lemmatized_words
 
 from flask import Flask
 from flask import render_template, request, jsonify
@@ -25,7 +25,7 @@ def index():
     
     # extract data needed for visuals
     # TODO: Below is an example - modify to extract data for your own visuals
-    genre_counts = df.groupby('genre').count()['message']
+    genre_counts = X.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
     
     # create visuals

@@ -1,9 +1,11 @@
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn import metrics
 
 from sklearn.naive_bayes import MultinomialNB
 
+from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import RegexpTokenizer
 
 from sklearn.model_selection import train_test_split
@@ -35,6 +37,12 @@ def load_data(database_filepath):
 
     return X, Y, category_names
 
+lemmatizer = WordNetLemmatizer()
+analyzer = CountVectorizer().build_analyzer()
+
+def lemmatized_words(doc):
+    return (lemmatizer.lemmatize(w) for w in analyzer(doc))
+
 
 def tokenize(text, filepath='vectorizer.pkl', fit_transform=True):
     """
@@ -49,26 +57,27 @@ def tokenize(text, filepath='vectorizer.pkl', fit_transform=True):
     # Use CountVectorizer to get the matrix of token counts
     # Ignore english stop words and use 1-grams only
     if fit_transform:
-        cv = CountVectorizer(
+        v = CountVectorizer(
             lowercase=True,
             stop_words='english',
-            ngram_range = (1,1),
-            tokenizer = token.tokenize
+            ngram_range=(1,1),
+            tokenizer=token.tokenize,
+            analyzer=lemmatized_words
         )
 
         # Apply the vectorizer
-        text_counts = cv.fit_transform(text)
+        text_counts = v.fit_transform(text)
 
         # Save the vectorizer to the filepath
-        pickle.dump(cv, open(filepath, 'wb'))
+        pickle.dump(v, open(filepath, 'wb'))
 
     else:
 
         # Re-use the vectorizer from the given filepath
-        cv = pickle.load(open(filepath, 'rb'))
+        v = pickle.load(open(filepath, 'rb'))
 
         # Apply the already fitted transform to the text
-        text_counts = cv.transform(text)
+        text_counts = v.transform(text)
 
     return text_counts
 
