@@ -9,7 +9,7 @@ from sklearn.naive_bayes import MultinomialNB
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import RegexpTokenizer
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sqlalchemy import create_engine
 import pandas as pd
 
@@ -54,11 +54,8 @@ def build_model():
     :return: a model
     """
 
-    # MultinomialNB has been shown to be quite successful for text-classification
-    # problems.
-
-    # Use the MultiOutputClassifier to fit a classifier for each response variable.
-    return Pipeline([
+    # Set up the pipeline
+    pipe =  Pipeline([
         ('vect', TfidfVectorizer(
             lowercase=True,
             stop_words='english',
@@ -68,6 +65,16 @@ def build_model():
         )),
         ('clf', MultiOutputClassifier(MultinomialNB()))
     ])
+
+    # Set up a parameter grid
+    pg = [
+        {
+            'vect__ngram_range': [(1,1), (1,3)]
+        }
+    ]
+
+    return GridSearchCV(pipe, param_grid=pg, cv=3)
+
 
 
 def tokenize(text, filepath='vectorizer.pkl'):
