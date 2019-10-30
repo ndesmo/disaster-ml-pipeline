@@ -2,6 +2,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn import metrics
 
+from sklearn.pipeline import Pipeline
+
 from sklearn.naive_bayes import MultinomialNB
 
 from nltk.stem import WordNetLemmatizer
@@ -39,46 +41,11 @@ def load_data(database_filepath):
 lemmatizer = WordNetLemmatizer()
 analyzer = TfidfVectorizer().build_analyzer()
 
+# Initialize a tokenizer that just looks for alphanumeric characters
+token = RegexpTokenizer(r'[a-zA-Z0-9]+')
+
 def lemmatized_words(doc):
     return (lemmatizer.lemmatize(w) for w in analyzer(doc))
-
-
-def tokenize(text, filepath='vectorizer.pkl', fit_transform=True):
-    """
-    Apply the tokenization to the dataset.
-    :param df: dataset of features
-    :return: tokenized features
-    """
-
-    # Initialize a tokenizer that just looks for alphanumeric characters
-    token = RegexpTokenizer(r'[a-zA-Z0-9]+')
-
-    # Use CountVectorizer to get the matrix of token counts
-    # Ignore english stop words and use 1-grams only
-    if fit_transform:
-        v = TfidfVectorizer(
-            lowercase=True,
-            stop_words='english',
-            ngram_range=(1,1),
-            tokenizer=token.tokenize,
-            analyzer=lemmatized_words
-        )
-
-        # Apply the vectorizer
-        text_counts = v.fit_transform(text)
-
-        # Save the vectorizer to the filepath
-        pickle.dump(v, open(filepath, 'wb'))
-
-    else:
-
-        # Re-use the vectorizer from the given filepath
-        v = pickle.load(open(filepath, 'rb'))
-
-        # Apply the already fitted transform to the text
-        text_counts = v.transform(text)
-
-    return text_counts
 
 
 def build_model():
@@ -91,7 +58,32 @@ def build_model():
     # problems.
 
     # Use the MultiOutputClassifier to fit a classifier for each response variable.
-    return MultiOutputClassifier(MultinomialNB())
+    return Pipeline([
+        ('vect', TfidfVectorizer(
+            lowercase=True,
+            stop_words='english',
+            ngram_range=(1,1),
+            tokenizer=token.tokenize,
+            analyzer=lemmatized_words
+        )),
+        ('clf', MultiOutputClassifier(MultinomialNB()))
+    ])
+
+
+def tokenize(text, filepath='vectorizer.pkl'):
+    """
+    Apply the tokenization to the dataset.
+    :param df: dataset of features
+    :return: tokenized features
+    """
+
+    # Re-use the vectorizer from the given filepath
+    v = pickle.load(open(filepath, 'rb'))
+
+    # Apply the already fitted transform to the text
+    text_counts = v.transform(text)
+
+    return text_counts
 
 def evaluate_model(model, X_test, Y_test, category_names):
     """
@@ -146,8 +138,8 @@ def main():
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
         X, Y, category_names = load_data(database_filepath)
 
-        # Apply the tokenizer to our features
-        X = tokenize(X['message'])
+        # We just want the message part
+        X = X['message']
 
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
         

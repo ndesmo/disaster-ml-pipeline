@@ -65,11 +65,8 @@ def go():
     # save user input in query
     query = request.args.get('query', '')
 
-    # Load the previously used vectorizer for the new data
-    word_vec = tokenize([query], '../models/vectorizer.pkl', False)
-
     # use model to predict classification for query
-    classification_labels = model.predict(word_vec)[0]
+    classification_labels = model.predict([query])[0]
     classification_results = dict(zip(Y, classification_labels))
 
     # This will render the go.html Please see that file. 
