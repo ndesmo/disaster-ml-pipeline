@@ -5,6 +5,7 @@ from sklearn import metrics
 from sklearn.pipeline import Pipeline
 
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.tree import DecisionTreeClassifier
 
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import RegexpTokenizer
@@ -58,8 +59,6 @@ def build_model():
     pipe =  Pipeline([
         ('vect', TfidfVectorizer(
             lowercase=True,
-            stop_words='english',
-            ngram_range=(1,1),
             tokenizer=token.tokenize,
             analyzer=lemmatized_words
         )),
@@ -69,11 +68,22 @@ def build_model():
     # Set up a parameter grid
     pg = [
         {
-            'vect__ngram_range': [(1,1), (1,3)]
+            'vect__ngram_range': [(1,1), (1,3)],
+            'vect__stop_words': ['english', None]
+        },
+        {
+            'clf': [MultiOutputClassifier(MultinomialNB())],
+            'clf__estimator__alpha': [1.0, 0.3, 0.1, 0.01]
+        },
+        {
+            'clf': [MultiOutputClassifier(DecisionTreeClassifier())],
+            'clf__estimator__criterion': ['gini', 'entropy']
         }
     ]
 
-    return GridSearchCV(pipe, param_grid=pg, cv=3)
+    return GridSearchCV(
+        pipe, param_grid=pg, cv=3
+    )
 
 
 
@@ -101,9 +111,10 @@ def evaluate_model(model, X_test, Y_test, category_names):
     :param category_names: The category names of the response variables.
     :return:
     """
-
     # Predict the output of the model on the test data
     Y_pred = model.predict(X_test)
+
+    print('Individual variable evaluation:')
 
     i = 0
     # Run through each category and print its accuracy.
@@ -121,11 +132,20 @@ def evaluate_model(model, X_test, Y_test, category_names):
         print('{}\n==============\nAccuracy: {}\nPrecision: {}\nRecall: {}\n==============\n'.format(
             category,
             metrics.accuracy_score(y_test, y_pred),
-            metrics.precision_score(y_test, y_pred, average = 'micro'),
-            metrics.recall_score(y_test, y_pred, average = 'micro')
+            metrics.precision_score(y_test, y_pred, average='micro'),
+            metrics.recall_score(y_test, y_pred, average='micro')
         ))
+        print(metrics.classification_report(y_test, y_pred))
+        print(metrics.confusion_matrix(y_test, y_pred))
 
         i += 1
+
+    print('Overall evaluation:')
+
+    # Output the GridSearchCV best score and best params
+    print('The best score from GridSearchCV: {}'.format(model.best_score_))
+    print('Best model parameters:')
+    print(model.best_params_)
 
 
 def save_model(model, model_filepath):
