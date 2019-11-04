@@ -88,7 +88,7 @@ def build_model():
         },
         {
             'clf': [MultiOutputClassifier(RandomForestClassifier())],
-            'clf__estimator__n_estimators': [2,5, 10, 20],
+            'clf__estimator__n_estimators': [2, 5, 10, 20],
             'clf__estimator__criterion': ['gini', 'entropy'],
             'clf__estimator__min_samples_split': [2, 5, 10]
         }
@@ -172,44 +172,48 @@ def save_model(model, model_filepath):
     pickle.dump(model, open(model_filepath, 'wb'))
 
 
-def main():
+def main(database_filepath, model_filepath):
     """
     Processing function for the full sequence. Loads the data from the database,
     splits into train and test datasets, runs the model pipeline and fits the data
     to the model. Evaluation of the model is then performed and the model is output
     to a pickle file.
+
+    :param database_filepath: The filepath of the database file to read.
+    :param model_filepath: The filepath to save the model to.
     :return:
     """
-    if len(sys.argv) == 3:
-        database_filepath, model_filepath = sys.argv[1:]
-        print('Loading data...\n    DATABASE: {}'.format(database_filepath))
-        X, Y, category_names = load_data(database_filepath)
 
-        # We just want the message part
-        X = X['message']
+    print('Loading data...\n    DATABASE: {}'.format(database_filepath))
+    X, Y, category_names = load_data(database_filepath)
 
-        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-        
-        print('Building model...')
-        model = build_model()
-        
-        print('Training model...')
-        model.fit(X_train, Y_train)
-        
-        print('Evaluating model...')
-        evaluate_model(model, X_test, Y_test, category_names)
+    # We just want the message part
+    X = X['message']
 
-        print('Saving model...\n    MODEL: {}'.format(model_filepath))
-        save_model(model, model_filepath)
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
 
-        print('Trained model saved!')
+    print('Building model...')
+    model = build_model()
 
-    else:
-        print('Please provide the filepath of the disaster messages database '\
-              'as the first argument and the filepath of the pickle file to '\
-              'save the model to as the second argument. \n\nExample: python '\
-              'train_classifier.py ../data/DisasterResponse.db classifier.pkl')
+    print('Training model...')
+    model.fit(X_train, Y_train)
+
+    print('Evaluating model...')
+    evaluate_model(model, X_test, Y_test, category_names)
+
+    print('Saving model...\n    MODEL: {}'.format(model_filepath))
+    save_model(model, model_filepath)
+
+    print('Trained model saved!')
 
 
 if __name__ == '__main__':
-    main()
+
+    if len(sys.argv) == 3:
+        database_filepath, model_filepath = sys.argv[1:]
+        main(database_filepath, model_filepath)
+    else:
+        print('Please provide the filepath of the disaster messages database '
+              'as the first argument and the filepath of the pickle file to '
+              'save the model to as the second argument. \n\nExample: python '
+              'train_classifier.py ../data/DisasterResponse.db classifier.pkl')
