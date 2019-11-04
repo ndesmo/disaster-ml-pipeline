@@ -6,6 +6,7 @@ from sklearn.pipeline import Pipeline
 
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import RegexpTokenizer
@@ -46,6 +47,11 @@ analyzer = TfidfVectorizer().build_analyzer()
 token = RegexpTokenizer(r'[a-zA-Z0-9]+')
 
 def lemmatized_words(doc):
+    """
+    Lemmatize the tokens contained within the document.
+    :param doc: document of tokens
+    :return: lemmatized document
+    """
     return (lemmatizer.lemmatize(w) for w in analyzer(doc))
 
 
@@ -77,7 +83,14 @@ def build_model():
         },
         {
             'clf': [MultiOutputClassifier(DecisionTreeClassifier())],
-            'clf__estimator__criterion': ['gini', 'entropy']
+            'clf__estimator__criterion': ['gini', 'entropy'],
+            'clf__estimator__min_samples_split': [2, 5, 10]
+        },
+        {
+            'clf': [MultiOutputClassifier(RandomForestClassifier())],
+            'clf__estimator__n_estimators': [2,5, 10, 20],
+            'clf__estimator__criterion': ['gini', 'entropy'],
+            'clf__estimator__min_samples_split': [2, 5, 10]
         }
     ]
 
@@ -160,6 +173,13 @@ def save_model(model, model_filepath):
 
 
 def main():
+    """
+    Processing function for the full sequence. Loads the data from the database,
+    splits into train and test datasets, runs the model pipeline and fits the data
+    to the model. Evaluation of the model is then performed and the model is output
+    to a pickle file.
+    :return:
+    """
     if len(sys.argv) == 3:
         database_filepath, model_filepath = sys.argv[1:]
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
