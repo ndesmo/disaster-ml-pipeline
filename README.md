@@ -26,4 +26,7 @@ This project is published under the Apache 2.0 Open Source License
 http://www.apache.org/licenses/LICENSE-2.0
 
 ## Acknowledegments
+
+I have used material from the following page to assist in my learning about how to code up ML pipelines: https://gist.github.com/amberjrivera/8c5c145516f5a2e894681e16a8095b5c
+
 This project is submitted as part of the Data Scientist Nanodegree at Udacity, which I would highly recommend.
