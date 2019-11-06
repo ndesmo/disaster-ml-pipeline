@@ -49,7 +49,7 @@ def clean_data(df):
 
     for column in categories:
         # set each value to be the last character of the string
-        categories[column] = [int(x.split('-')[1]) for x in categories[column]]
+        categories[column] = [min(int(x.split('-')[1]), 1) for x in categories[column]]
 
     # drop the original categories column from `df`
     df = df.drop(['categories'], axis=1)
