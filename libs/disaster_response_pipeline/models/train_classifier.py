@@ -8,6 +8,12 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
+from skmultilearn.problem_transform import LabelPowerset
+from imblearn.under_sampling import RandomUnderSampler, NearMiss
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.combine import SMOTETomek
+from imblearn import FunctionSampler
+
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import RegexpTokenizer
 
@@ -18,6 +24,7 @@ import pandas as pd
 import pickle
 
 import sys
+import os
 
 
 def load_data(database_filepath):
@@ -40,11 +47,13 @@ def load_data(database_filepath):
 
     return X, Y, category_names
 
+
 lemmatizer = WordNetLemmatizer()
 analyzer = TfidfVectorizer().build_analyzer()
 
 # Initialize a tokenizer that just looks for alphanumeric characters
 token = RegexpTokenizer(r'[a-zA-Z0-9]+')
+
 
 def lemmatized_words(doc):
     """
@@ -53,6 +62,81 @@ def lemmatized_words(doc):
     :return: lemmatized document
     """
     return (lemmatizer.lemmatize(w) for w in analyzer(doc))
+
+
+def transform_labels(Y, converter_filepath='converter.pkl'):
+    """
+    Convert the labels to a vector of classes.
+    :param Y: Response labels dataset
+    :return: Vector of classes.
+    """
+
+    # Initialize powerset conversion of labels to vector
+    lp = LabelPowerset()
+
+    # Apply the multi-label to multi-class transformation
+    yt = lp.transform(Y)
+
+    # Remove any existing converter at this path
+    try:
+        os.remove(converter_filepath)
+    except FileNotFoundError:
+        pass
+
+    pickle.dump(lp, open(converter_filepath, 'wb'))
+
+    return yt
+
+
+def transform_classes(y, category_names, converter_filepath='converter.pkl'):
+    """
+    Convert the vector of classes to a labels dataset.
+    :param Y: Vector of classes
+    :param category_names: Names of the labels
+    :return: Response labels dataset
+    """
+
+    # Initialize powerset conversion of labels to vector
+    lp = pickle.load(open(converter_filepath, 'rb'))
+
+    # Apply the inverse transformation to take multi-class -> multi-label
+    Y = lp.inverse_transform(y)
+
+    # Convert back to pandas dataframe
+    Y = pd.DataFrame(data=Y.toarray(), columns=category_names)
+
+    return Y
+
+
+def resample_data(X, Y):
+    """
+    Preprocess and resample the data to balance out the classes
+    :param X: Features dataset
+    :param Y: Lables dataset
+    :return: Resampled X and Y
+    """
+
+    # Use for searching X later
+    x = pd.DataFrame(data=X.index.values)
+
+    # Convert the labels to a vector of classes
+    y = transform_labels(Y)
+
+    # Initiate the sampler
+    sampler = RandomUnderSampler()
+
+    # Fit to the data
+    x_rs, y_rs = sampler.fit_resample(x, y)
+
+    # Convert back to original formats
+    X_rs = X.iloc[x_rs[:,0]]
+    Y_rs = transform_classes(y_rs, Y.columns)
+
+    # Append to original dataset to ensure enough data exists for each class
+    X_rs = pd.concat([X, X_rs])
+    Y_rs = pd.concat([Y, Y_rs])
+
+    return X_rs, Y_rs
 
 
 def build_model():
@@ -68,52 +152,53 @@ def build_model():
             tokenizer=token.tokenize,
             analyzer=lemmatized_words
         )),
+        # ('smp', FunctionSampler(
+        #     func=resample_data
+        # )),
         ('clf', MultiOutputClassifier(MultinomialNB()))
     ])
 
     # Set up a parameter grid
     pg = [
+        # {
+        #     'vect__ngram_range': [(1,1), (1,3)],
+        #     'vect__stop_words': ['english', None]
+        # },
+        # {
+        #     'clf': [MultiOutputClassifier(MultinomialNB())],
+        #     'clf__estimator__alpha': [1.0, 0.3, 0.1, 0.01]
+        # },
+        # {
+        #     'clf': [MultiOutputClassifier(DecisionTreeClassifier())],
+        #     'clf__estimator__criterion': ['gini', 'entropy'],
+        #     'clf__estimator__min_samples_split': [2, 5, 10]
+        # },
+        # {
+        #     'clf': [MultiOutputClassifier(RandomForestClassifier())],
+        #     'clf__estimator__n_estimators': [2, 5, 10, 20],
+        #     'clf__estimator__criterion': ['gini', 'entropy'],
+        #     'clf__estimator__min_samples_split': [2, 5, 10]
+        # }
+        # {
+        #     'clf': [MultiOutputClassifier(RandomForestClassifier())],
+        #     'clf__estimator__n_estimators': [20],
+        #     'clf__estimator__criterion': ['gini'],
+        #     'clf__estimator__min_samples_split': [2]
+        # }
         {
-            'vect__ngram_range': [(1,1), (1,3)],
-            'vect__stop_words': ['english', None]
+            'vect__ngram_range': [(1,1)],
+            'vect__stop_words': ['english']
         },
         {
             'clf': [MultiOutputClassifier(MultinomialNB())],
-            'clf__estimator__alpha': [1.0, 0.3, 0.1, 0.01]
-        },
-        {
-            'clf': [MultiOutputClassifier(DecisionTreeClassifier())],
-            'clf__estimator__criterion': ['gini', 'entropy'],
-            'clf__estimator__min_samples_split': [2, 5, 10]
-        },
-        {
-            'clf': [MultiOutputClassifier(RandomForestClassifier())],
-            'clf__estimator__n_estimators': [2, 5, 10, 20],
-            'clf__estimator__criterion': ['gini', 'entropy'],
-            'clf__estimator__min_samples_split': [2, 5, 10]
+            'clf__estimator__alpha': [0.01]
         }
     ]
 
     return GridSearchCV(
-        pipe, param_grid=pg, cv=3
+        pipe, param_grid=pg, cv=10
     )
 
-
-
-def tokenize(text, filepath='vectorizer.pkl'):
-    """
-    Apply the tokenization to the dataset.
-    :param df: dataset of features
-    :return: tokenized features
-    """
-
-    # Re-use the vectorizer from the given filepath
-    v = pickle.load(open(filepath, 'rb'))
-
-    # Apply the already fitted transform to the text
-    text_counts = v.transform(text)
-
-    return text_counts
 
 def evaluate_model(model, X_test, Y_test, category_names):
     """
@@ -190,16 +275,19 @@ def main(database_filepath, model_filepath):
     # We just want the message part
     X = X['message']
 
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
+    print('Resampling data...')
+    X, Y = resample_data(X, Y)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2)
 
     print('Building model...')
     model = build_model()
 
     print('Training model...')
-    model.fit(X_train, Y_train)
+    model.fit(X_train, y_train)
 
     print('Evaluating model...')
-    evaluate_model(model, X_test, Y_test, category_names)
+    evaluate_model(model, X_test, y_test, category_names)
 
     print('Saving model...\n    MODEL: {}'.format(model_filepath))
     save_model(model, model_filepath)

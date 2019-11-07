@@ -1,7 +1,7 @@
 import json
 import plotly
 
-from disaster_response_pipeline.models.train_classifier import tokenize, load_data, lemmatized_words
+from disaster_response_pipeline.models.train_classifier import load_data, lemmatized_words
 
 from flask import Flask
 from flask import render_template, request, jsonify
