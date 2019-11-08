@@ -64,51 +64,22 @@ def lemmatized_words(doc):
     return (lemmatizer.lemmatize(w) for w in analyzer(doc))
 
 
-def transform_labels(Y, converter_filepath='converter.pkl'):
+def Vectorizer():
     """
-    Convert the labels to a vector of classes.
-    :param Y: Response labels dataset
-    :return: Vector of classes.
-    """
-
-    # Initialize powerset conversion of labels to vector
-    lp = LabelPowerset()
-
-    # Apply the multi-label to multi-class transformation
-    yt = lp.transform(Y)
-
-    # Remove any existing converter at this path
-    try:
-        os.remove(converter_filepath)
-    except FileNotFoundError:
-        pass
-
-    pickle.dump(lp, open(converter_filepath, 'wb'))
-
-    return yt
-
-
-def transform_classes(y, category_names, converter_filepath='converter.pkl'):
-    """
-    Convert the vector of classes to a labels dataset.
-    :param Y: Vector of classes
-    :param category_names: Names of the labels
-    :return: Response labels dataset
+    Transform the text input into a vector
+    :return: Vectorizer
     """
 
-    # Initialize powerset conversion of labels to vector
-    lp = pickle.load(open(converter_filepath, 'rb'))
-
-    # Apply the inverse transformation to take multi-class -> multi-label
-    Y = lp.inverse_transform(y)
-
-    # Convert back to pandas dataframe
-    Y = pd.DataFrame(data=Y.toarray(), columns=category_names)
-
-    return Y
+    return TfidfVectorizer(
+        lowercase=True,
+        tokenizer=token.tokenize,
+        analyzer=lemmatized_words,
+        ngram_range=(1,1),
+        stop_words='english'
+    )
 
 
-def resample_data(X, Y):
+def resample_data(X, Y, category_names):
     """
     Preprocess and resample the data to balance out the classes
     :param X: Features dataset
@@ -116,25 +87,59 @@ def resample_data(X, Y):
     :return: Resampled X and Y
     """
 
-    # Use for searching X later
-    x = pd.DataFrame(data=X.index.values)
+    # Initialize the vectorizer
+    vect = Vectorizer()
 
-    # Convert the labels to a vector of classes
-    y = transform_labels(Y)
+    # Transform the variables to numeric format
+    Xv = vect.fit_transform(X)
 
-    # Initiate the sampler
-    sampler = RandomUnderSampler()
+    # Lists of dataframes to concat
+    X_rs = pd.DataFrame()
+    Y_rs = pd.DataFrame()
 
-    # Fit to the data
-    x_rs, y_rs = sampler.fit_resample(x, y)
+    # Perform sampling on the individual categories
+    for category in category_names:
 
-    # Convert back to original formats
-    X_rs = X.iloc[x_rs[:,0]]
-    Y_rs = transform_classes(y_rs, Y.columns)
+        # Only oversample if target has 2 classes
+        if Y[category].value_counts().shape[0] == 2:
 
-    # Append to original dataset to ensure enough data exists for each class
-    X_rs = pd.concat([X, X_rs])
-    Y_rs = pd.concat([Y, Y_rs])
+            # Ascertain the response variable
+            y = Y[category]
+
+            # Initiate the oversampler
+            oversampler = RandomOverSampler()
+
+            # Apply the oversampler
+            Xv_rs, y_rs = oversampler.fit_resample(Xv, y)
+
+            # Extract the indices of the records chosen by the sampler
+            indices = oversampler.sample_indices_
+
+        # If just one class then just return all rows
+        elif Y[category].value_counts().shape[0] == 1:
+            indices = Y.index.values
+
+        # Prepare a dataset for stratified sampling of the indices
+        df = pd.DataFrame(dict(ind=indices, y=Y.iloc[indices][category]))
+
+        # Ascertain weights for each to produce similar row counts by class
+        df['weight'] = 1/df.groupby('y')['y'].transform('count')
+
+        # Perform sampling to get adequate number of rows
+        df = df.sample(n=int(Y.shape[0]/Y.shape[1]), weights='weight', axis=0)
+
+        # Extract the indices sampled
+        indices = df['ind']
+
+        # Use the indices to sample the original datasets
+        X_rs_i = X.iloc[indices]
+        Y_rs_i = Y.iloc[indices]
+
+        # Append the samples to the fully resampled datasets
+        X_rs = pd.concat([X_rs, X_rs_i])
+        Y_rs = pd.concat([Y_rs, Y_rs_i])
+
+    X_rs = X_rs.ix[:,0]
 
     return X_rs, Y_rs
 
@@ -147,14 +152,7 @@ def build_model():
 
     # Set up the pipeline
     pipe =  Pipeline([
-        ('vect', TfidfVectorizer(
-            lowercase=True,
-            tokenizer=token.tokenize,
-            analyzer=lemmatized_words
-        )),
-        # ('smp', FunctionSampler(
-        #     func=resample_data
-        # )),
+        ('vect', Vectorizer()),
         ('clf', MultiOutputClassifier(MultinomialNB()))
     ])
 
@@ -276,7 +274,7 @@ def main(database_filepath, model_filepath):
     X = X['message']
 
     print('Resampling data...')
-    X, Y = resample_data(X, Y)
+    X, Y = resample_data(X, Y, category_names)
 
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2)
 
