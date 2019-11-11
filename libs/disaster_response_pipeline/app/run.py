@@ -24,28 +24,51 @@ model = joblib.load("../models/disaster.pkl")
 def index():
     
     # extract data needed for visuals
-    # TODO: Below is an example - modify to extract data for your own visuals
-    genre_counts = X.groupby('genre').count()['message']
-    genre_names = list(genre_counts.index)
+    # Most tagged categories
+    top_categories = Y.sum().sort_values(0, ascending=False).head(5)
+    top_category_counts = list(top_categories.values)
+    top_category_names = list(top_categories.index)
+
+    # Least tagged categories
+    bot_categories = Y.sum().sort_values(0, ascending=True).head(5)
+    bot_category_counts = list(bot_categories.values)
+    bot_category_names = list(bot_categories.index)
     
     # create visuals
-    # TODO: Below is an example - modify to create your own visuals
     graphs = [
         {
             'data': [
                 Bar(
-                    x=genre_names,
-                    y=genre_counts
+                    x=top_category_names,
+                    y=top_category_counts
                 )
             ],
 
             'layout': {
-                'title': 'Distribution of Message Genres',
+                'title': 'Top 5 most tagged categories',
                 'yaxis': {
                     'title': "Count"
                 },
                 'xaxis': {
-                    'title': "Genre"
+                    'title': "Category"
+                }
+            }
+        },
+        {
+            'data': [
+                Bar(
+                    x=bot_category_names,
+                    y=bot_category_counts
+                )
+            ],
+
+            'layout': {
+                'title': 'Top 5 least tagged categories',
+                'yaxis': {
+                    'title': "Count"
+                },
+                'xaxis': {
+                    'title': "Category"
                 }
             }
         }
