@@ -74,7 +74,7 @@ def Vectorizer():
         lowercase=True,
         tokenizer=token.tokenize,
         analyzer=lemmatized_words,
-        ngram_range=(1,1),
+        ngram_range=(1,3),
         stop_words='english'
     )
 
@@ -139,7 +139,7 @@ def resample_data(X, Y, category_names):
         X_rs = pd.concat([X_rs, X_rs_i])
         Y_rs = pd.concat([Y_rs, Y_rs_i])
 
-    X_rs = X_rs.ix[:,0]
+    X_rs = X_rs.iloc[:,0]
 
     return X_rs, Y_rs
 
@@ -158,14 +158,15 @@ def build_model():
 
     # Set up a parameter grid
     pg = [
-        # {
-        #     'vect__ngram_range': [(1,1), (1,3)],
-        #     'vect__stop_words': ['english', None]
-        # },
-        # {
-        #     'clf': [MultiOutputClassifier(MultinomialNB())],
-        #     'clf__estimator__alpha': [1.0, 0.3, 0.1, 0.01]
-        # },
+        {
+            'vect__ngram_range': [(1,1), (1,3)],
+            'vect__stop_words': ['english', None]
+        },
+        {
+            'clf': [MultiOutputClassifier(MultinomialNB())],
+            'clf__estimator__alpha': [1.0, 0.3, 0.1, 0.01]
+        },
+        # Removed because it takes a long time to train
         # {
         #     'clf': [MultiOutputClassifier(DecisionTreeClassifier())],
         #     'clf__estimator__criterion': ['gini', 'entropy'],
@@ -177,20 +178,6 @@ def build_model():
         #     'clf__estimator__criterion': ['gini', 'entropy'],
         #     'clf__estimator__min_samples_split': [2, 5, 10]
         # }
-        # {
-        #     'clf': [MultiOutputClassifier(RandomForestClassifier())],
-        #     'clf__estimator__n_estimators': [20],
-        #     'clf__estimator__criterion': ['gini'],
-        #     'clf__estimator__min_samples_split': [2]
-        # }
-        {
-            'vect__ngram_range': [(1,1)],
-            'vect__stop_words': ['english']
-        },
-        {
-            'clf': [MultiOutputClassifier(MultinomialNB())],
-            'clf__estimator__alpha': [0.01]
-        }
     ]
 
     return GridSearchCV(
