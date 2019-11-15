@@ -2,7 +2,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn import metrics
 
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.preprocessing import FunctionTransformer
 
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.tree import DecisionTreeClassifier
@@ -91,7 +92,7 @@ def resample_data(X, Y, category_names):
     vect = Vectorizer()
 
     # Transform the variables to numeric format
-    Xv = vect.fit_transform(X)
+    Xv = vect.fit_transform(X['message'])
 
     # Lists of dataframes to concat
     X_rs = pd.DataFrame()
@@ -126,7 +127,7 @@ def resample_data(X, Y, category_names):
         df['weight'] = 1/df.groupby('y')['y'].transform('count')
 
         # Perform sampling to get adequate number of rows
-        df = df.sample(n=int(Y.shape[0]/Y.shape[1]), weights='weight', axis=0)
+        df = df.sample(n=int(4*Y.shape[0]/Y.shape[1]), weights='weight', axis=0)
 
         # Extract the indices sampled
         indices = df['ind']
@@ -144,6 +145,19 @@ def resample_data(X, Y, category_names):
     return X_rs, Y_rs
 
 
+def message(X):
+    """
+    Extract the message column from the data if passed a dataframe.
+    If just a string or Series then pass itself.
+    :param X:
+    :return:
+    """
+    if isinstance(X, str) or isinstance(X, pd.core.series.Series):
+        return X
+    else:
+        return X.message.values
+
+
 def build_model():
     """
     Initialize a model for running the data through
@@ -151,21 +165,28 @@ def build_model():
     """
 
     # Set up the pipeline
-    pipe =  Pipeline([
-        ('vect', Vectorizer()),
+    pipe1 =  Pipeline([
+        ('column_selection', FunctionTransformer(message, validate=False)),
+        ('vect', Vectorizer())
+    ])
+
+    pipe = Pipeline([
+        ('union', FeatureUnion([
+            ('pi1', pipe1)
+        ])),
         ('clf', MultiOutputClassifier(MultinomialNB()))
     ])
 
     # Set up a parameter grid
     pg = [
-        {
-            'vect__ngram_range': [(1,1), (1,3)],
-            'vect__stop_words': ['english', None]
-        },
-        {
-            'clf': [MultiOutputClassifier(MultinomialNB())],
-            'clf__estimator__alpha': [1.0, 0.3, 0.1, 0.01]
-        },
+        # {
+        #     'vect__ngram_range': [(1,1), (1,3)],
+        #     'vect__stop_words': ['english', None]
+        # },
+        # {
+        #     'clf': [MultiOutputClassifier(MultinomialNB())],
+        #     'clf__estimator__alpha': [1.0, 0.3, 0.1, 0.01]
+        # },
         # Removed because it takes a long time to train
         # {
         #     'clf': [MultiOutputClassifier(DecisionTreeClassifier())],
@@ -178,6 +199,19 @@ def build_model():
         #     'clf__estimator__criterion': ['gini', 'entropy'],
         #     'clf__estimator__min_samples_split': [2, 5, 10]
         # }
+        {
+            'union__pi1__vect__ngram_range': [(1,3)],
+            'union__pi1__vect__stop_words': ['english']
+        },
+        {
+            'clf': [MultiOutputClassifier(MultinomialNB())],
+            'clf__estimator__alpha': [0.01]
+        },
+        # {
+        #     'clf': [MultiOutputClassifier(DecisionTreeClassifier())],
+        #     'clf__estimator__criterion': ['gini'],
+        #     'clf__estimator__min_samples_split': [2]
+        # },
     ]
 
     return GridSearchCV(
@@ -257,8 +291,16 @@ def main(database_filepath, model_filepath):
     print('Loading data...\n    DATABASE: {}'.format(database_filepath))
     X, Y, category_names = load_data(database_filepath)
 
+    indices = X[X.genre == 'social'].index
+    X = X.iloc[indices].reset_index(drop=True)
+    Y = Y.iloc[indices].reset_index(drop=True)
+    print(X.head())
+    print(Y.head())
+    print(X.shape)
+    print(Y.shape)
+
     # We just want the message part
-    X = X['message']
+    # X = X['message']
 
     print('Resampling data...')
     X, Y = resample_data(X, Y, category_names)
