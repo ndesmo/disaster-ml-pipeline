@@ -3,7 +3,7 @@ from sklearn.multioutput import MultiOutputClassifier
 from sklearn import metrics
 
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import FunctionTransformer
+from sklearn.preprocessing import FunctionTransformer, LabelEncoder, OneHotEncoder
 
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.tree import DecisionTreeClassifier
@@ -140,22 +140,28 @@ def resample_data(X, Y, category_names):
         X_rs = pd.concat([X_rs, X_rs_i])
         Y_rs = pd.concat([Y_rs, Y_rs_i])
 
-    X_rs = X_rs.iloc[:,0]
+    # X_rs = X_rs.iloc[:,0]
+    X_rs = X_rs[['message', 'genre']]
 
     return X_rs, Y_rs
 
 
 def message(X):
     """
-    Extract the message column from the data if passed a dataframe.
-    If just a string or Series then pass itself.
+    Extract the message column from the data.
     :param X:
     :return:
     """
-    if isinstance(X, str) or isinstance(X, pd.core.series.Series):
-        return X
-    else:
-        return X.message.values
+    return X.message.values
+
+
+def genre(X):
+    """
+    Extract the genre column from the data.
+    :param X:
+    :return:
+    """
+    return X[['genre']]
 
 
 def build_model():
@@ -170,9 +176,15 @@ def build_model():
         ('vect', Vectorizer())
     ])
 
+    pipe2 =  Pipeline([
+        ('column_selection', FunctionTransformer(genre, validate=False)),
+        ('vect', OneHotEncoder())
+    ])
+
     pipe = Pipeline([
         ('union', FeatureUnion([
-            ('pi1', pipe1)
+            ('pi1', pipe1),
+            ('pi2', pipe2)
         ])),
         ('clf', MultiOutputClassifier(MultinomialNB()))
     ])
@@ -290,17 +302,6 @@ def main(database_filepath, model_filepath):
 
     print('Loading data...\n    DATABASE: {}'.format(database_filepath))
     X, Y, category_names = load_data(database_filepath)
-
-    indices = X[X.genre == 'social'].index
-    X = X.iloc[indices].reset_index(drop=True)
-    Y = Y.iloc[indices].reset_index(drop=True)
-    print(X.head())
-    print(Y.head())
-    print(X.shape)
-    print(Y.shape)
-
-    # We just want the message part
-    # X = X['message']
 
     print('Resampling data...')
     X, Y = resample_data(X, Y, category_names)
